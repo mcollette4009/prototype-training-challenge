@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient"
 import LoginPage from "@/components/auth/login-page"
 import SignupPage from "@/components/auth/signup-page"
 import AdminLoginPage from "@/components/auth/admin-login-page"
+import MemberDashboard from "@/components/dashboard/member-dashboard" // ✅ import
 
 type AuthPage = "login" | "signup" | "admin-login"
 
@@ -13,7 +14,6 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [currentAuthPage, setCurrentAuthPage] = useState<AuthPage>("login")
 
-  // Load user on mount
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -22,7 +22,6 @@ export default function App() {
     }
     getUser()
 
-    // Listen for login/logout
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user || null)
     })
@@ -40,20 +39,9 @@ export default function App() {
     )
   }
 
-  // If logged in → TEMP welcome screen instead of dashboards
+  // ✅ If logged in → go to dashboard
   if (user) {
-    return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center">
-        <h1 className="text-2xl mb-4">✅ Logged in successfully!</h1>
-        <p className="mb-4">Welcome, {user.email}</p>
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="bg-red-500 px-4 py-2 rounded hover:bg-red-600 transition"
-        >
-          Logout
-        </button>
-      </div>
-    )
+    return <MemberDashboard />
   }
 
   // Not logged in → show auth pages
