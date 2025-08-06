@@ -2,23 +2,29 @@
 
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabaseClient"
+import LoginPage from "@/components/auth/login-page"
+import SignupPage from "@/components/auth/signup-page"
+import AdminLoginPage from "@/components/auth/admin-login-page"
+import MemberDashboard from "@/components/dashboard/member-dashboard"
+import AdminDashboard from "@/components/dashboard/admin-dashboard"
 
-export default function Home() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+type AuthPage = "login" | "signup" | "admin-login"
+
+export default function App() {
   const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [currentAuthPage, setCurrentAuthPage] = useState<AuthPage>("login")
 
-  // Check if user is logged in
+  // Load user on mount
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
-      setLoading(false)
+      setIsLoading(false)
     }
     getUser()
 
+    // Listen for login/logout
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user || null)
     })
@@ -28,84 +34,36 @@ export default function Home() {
     }
   }, [])
 
-  async function handleSignUp(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    const { error } = await supabase.auth.signUp({ email, password })
-    if (error) setError(error.message)
-  }
-
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) setError(error.message)
-  }
-
-  async function handleLogout() {
-    await supabase.auth.signOut()
-  }
-
-  if (loading) return <p className="text-white p-4">Loading...</p>
-
-  if (user) {
+  if (isLoading) {
     return (
-      <div style={{ padding: "20px", color: "white", background: "black" }}>
-        <h2>Welcome {user.email}</h2>
-        <button
-          onClick={handleLogout}
-          style={{ marginTop: "10px", padding: "8px", background: "red", color: "white" }}
-        >
-          Logout
-        </button>
+      <div className="min-h-screen flex items-center justify-center text-white">
+        Loading...
       </div>
     )
   }
 
-  return (
-    <div style={{ padding: "20px", color: "white", background: "black" }}>
-      <h1>Login or Sign Up</h1>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      
-      <form onSubmit={handleLogin} style={{ marginBottom: "20px" }}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{ display: "block", marginBottom: "10px", padding: "8px", width: "250px", color: "black" }}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{ display: "block", marginBottom: "10px", padding: "8px", width: "250px", color: "black" }}
-        />
-        <button type="submit" style={{ padding: "8px", background: "green", color: "white" }}>
-          Login
-        </button>
-      </form>
+  // If logged in → show dashboards
+  if (user) {
+    const role = user.user_metadata?.role || "member"
+    if (role === "admin") {
+      return <AdminDashboard />
+    }
+    return <MemberDashboard />
+  }
 
-      <form onSubmit={handleSignUp}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{ display: "block", marginBottom: "10px", padding: "8px", width: "250px", color: "black" }}
+  // Not logged in → show auth pages
+  switch (currentAuthPage) {
+    case "signup":
+      return <SignupPage onSwitchToLogin={() => setCurrentAuthPage("login")} />
+    case "admin-login":
+      return <AdminLoginPage onBackToLogin={() => setCurrentAuthPage("login")} />
+    case "login":
+    default:
+      return (
+        <LoginPage
+          onSwitchToSignup={() => setCurrentAuthPage("signup")}
+          onSwitchToAdminLogin={() => setCurrentAuthPage("admin-login")}
         />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{ display: "block", marginBottom: "10px", padding: "8px", width: "250px", color: "black" }}
-        />
-        <button type="submit" style={{ padding: "8px", background: "blue", color: "white" }}>
-          Sign Up
-        </button>
-      </form>
-    </div>
-  )
+      )
+  }
 }
