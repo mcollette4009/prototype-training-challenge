@@ -5,8 +5,6 @@ import { supabase } from "@/lib/supabaseClient"
 import LoginPage from "@/components/auth/login-page"
 import SignupPage from "@/components/auth/signup-page"
 import AdminLoginPage from "@/components/auth/admin-login-page"
-import MemberDashboard from "@/components/dashboard/member-dashboard"
-import AdminDashboard from "@/components/dashboard/admin-dashboard"
 
 type AuthPage = "login" | "signup" | "admin-login"
 
@@ -42,13 +40,20 @@ export default function App() {
     )
   }
 
-  // If logged in → show dashboards
+  // If logged in → TEMP welcome screen instead of dashboards
   if (user) {
-    const role = user.user_metadata?.role || "member"
-    if (role === "admin") {
-      return <AdminDashboard />
-    }
-    return <MemberDashboard />
+    return (
+      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center">
+        <h1 className="text-2xl mb-4">✅ Logged in successfully!</h1>
+        <p className="mb-4">Welcome, {user.email}</p>
+        <button
+          onClick={() => supabase.auth.signOut()}
+          className="bg-red-500 px-4 py-2 rounded hover:bg-red-600 transition"
+        >
+          Logout
+        </button>
+      </div>
+    )
   }
 
   // Not logged in → show auth pages
