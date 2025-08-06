@@ -1,11 +1,11 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Eye, EyeOff, Mail, Lock, User, ArrowRight } from "lucide-react"
 import Image from "next/image"
 import { useAuth } from "@/contexts/auth-context"
+import { supabase } from "@/lib/supabaseClient" // ✅ add this
 
 interface MemberSignUpPageProps {
   onSwitchToLogin: () => void
@@ -44,8 +44,20 @@ export default function MemberSignUpPage({ onSwitchToLogin, onSignupSuccess }: M
     }
 
     try {
+      // ✅ Create the auth account
       const success = await signup(formData.name, formData.email, formData.password)
+
       if (success) {
+        // ✅ Get the logged-in user from Supabase
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (user) {
+          // ✅ Immediately insert into profiles table
+          await supabase.from("profiles").insert([
+            { id: user.id, name: formData.name || '', role: "member" }
+          ])
+        }
+
         onSignupSuccess()
       } else {
         setError("Email already exists")
