@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { AuthProvider, useAuth } from "@/contexts/auth-context"
+import { useState, useEffect } from "react"
+import { supabase } from "@/lib/supabaseClient"
 import LoginPage from "@/components/auth/login-page"
 import SignupPage from "@/components/auth/signup-page"
 import AdminLoginPage from "@/components/auth/admin-login-page"
@@ -10,11 +10,30 @@ import AdminDashboard from "@/components/dashboard/admin-dashboard"
 
 type AuthPage = "login" | "signup" | "admin-login"
 
-function AppContent() {
-  const { user, isLoading } = useAuth()
+export default function App() {
+  const [user, setUser] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const [currentAuthPage, setCurrentAuthPage] = useState<AuthPage>("login")
 
-  // Show loading state
+  // Load the current user session
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+      setIsLoading(false)
+    }
+    getUser()
+
+    // Listen for auth changes
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null)
+    })
+
+    return () => {
+      listener.subscription.unsubscribe()
+    }
+  }, [])
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-black to-gray-800">
@@ -26,16 +45,17 @@ function AppContent() {
     )
   }
 
-  // If user is logged in, show appropriate dashboard
+  // If logged in, show dashboard
   if (user) {
-    if (user.role === "member") {
+    const role = user.user_metadata?.role || "member" // Default to member
+    if (role === "member") {
       return <MemberDashboard />
-    } else if (user.role === "admin") {
+    } else if (role === "admin") {
       return <AdminDashboard />
     }
   }
 
-  // Show authentication pages
+  // Show authentication screens
   switch (currentAuthPage) {
     case "signup":
       return <SignupPage onSwitchToLogin={() => setCurrentAuthPage("login")} />
@@ -52,12 +72,4 @@ function AppContent() {
         </div>
       )
   }
-}
-
-export default function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  )
 }
