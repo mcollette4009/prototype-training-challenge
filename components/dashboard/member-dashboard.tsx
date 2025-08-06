@@ -1,102 +1,63 @@
 "use client"
 
 import { useState } from "react"
-import { Home, Calendar, Trophy, User } from "lucide-react"
-import { useAuth } from "@/contexts/auth-context"
-import HomePage from "@/components/pages/home-page"
-import CalendarPage from "@/components/pages/calendar-page"
-import LeaderboardPage from "@/components/pages/leaderboard-page"
-import ProfilePage from "@/components/pages/profile-page"
-
-type TabType = "home" | "calendar" | "leaderboard" | "profile"
+import { supabase } from "@/lib/supabaseClient"
 
 export default function MemberDashboard() {
-  const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState<TabType>("home")
+  const [challenge, setChallenge] = useState("")
+  const [status, setStatus] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  if (!user || user.role !== "member") return null
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setStatus("")
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case "home":
-        return <HomePage />
-      case "calendar":
-        return <CalendarPage />
-      case "leaderboard":
-        return <LeaderboardPage />
-      case "profile":
-        return <ProfilePage />
-      default:
-        return <HomePage />
+    // Get the logged in user
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setStatus("You must be logged in")
+      setLoading(false)
+      return
     }
+
+    // Insert into Supabase challenge_logs table
+    const { error } = await supabase.from("challenge_logs").insert({
+      user_id: user.id,
+      description: challenge,
+      date: new Date().toISOString().split("T")[0]
+    })
+
+    if (error) {
+      setStatus("❌ Failed to log challenge: " + error.message)
+    } else {
+      setStatus("✅ Challenge logged successfully!")
+      setChallenge("")
+    }
+
+    setLoading(false)
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 max-w-mobile mx-auto relative">
-      {/* Header */}
-      <div className="sticky top-0 z-50 glass-header border-b border-white/10">
-        <div className="flex items-center justify-center p-4">
-          <img src="/prototype-logo.png" alt="Prototype Training Systems" className="h-8 w-auto" />
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="pb-20">{renderContent()}</div>
-
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-mobile z-50">
-        <div className="glass-nav border-t border-white/10 px-4 py-2">
-          <div className="flex items-center justify-around">
-            <button
-              onClick={() => setActiveTab("home")}
-              className={`flex flex-col items-center space-y-1 p-3 rounded-2xl transition-all duration-300 ${
-                activeTab === "home"
-                  ? "bg-brand-orange/20 text-brand-orange"
-                  : "text-gray-400 hover:text-white hover:bg-white/10"
-              }`}
-            >
-              <Home size={20} />
-              <span className="text-xs font-medium">Home</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("calendar")}
-              className={`flex flex-col items-center space-y-1 p-3 rounded-2xl transition-all duration-300 ${
-                activeTab === "calendar"
-                  ? "bg-brand-orange/20 text-brand-orange"
-                  : "text-gray-400 hover:text-white hover:bg-white/10"
-              }`}
-            >
-              <Calendar size={20} />
-              <span className="text-xs font-medium">Calendar</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("leaderboard")}
-              className={`flex flex-col items-center space-y-1 p-3 rounded-2xl transition-all duration-300 ${
-                activeTab === "leaderboard"
-                  ? "bg-brand-orange/20 text-brand-orange"
-                  : "text-gray-400 hover:text-white hover:bg-white/10"
-              }`}
-            >
-              <Trophy size={20} />
-              <span className="text-xs font-medium">Leaderboard</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("profile")}
-              className={`flex flex-col items-center space-y-1 p-3 rounded-2xl transition-all duration-300 ${
-                activeTab === "profile"
-                  ? "bg-brand-orange/20 text-brand-orange"
-                  : "text-gray-400 hover:text-white hover:bg-white/10"
-              }`}
-            >
-              <User size={20} />
-              <span className="text-xs font-medium">Profile</span>
-            </button>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-black text-white p-6">
+      <h1 className="text-2xl font-bold mb-4">Member Dashboard</h1>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <textarea
+          value={challenge}
+          onChange={(e) => setChallenge(e.target.value)}
+          placeholder="What was your hard thing today?"
+          className="w-full p-3 text-black rounded"
+          required
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          className="bg-green-500 px-4 py-2 rounded disabled:opacity-50"
+        >
+          {loading ? "Saving..." : "Save Challenge"}
+        </button>
+      </form>
+      {status && <p className="mt-4">{status}</p>}
     </div>
   )
 }
