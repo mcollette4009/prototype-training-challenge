@@ -15,7 +15,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [currentAuthPage, setCurrentAuthPage] = useState<AuthPage>("login")
 
-  // Load the current user session
+  // Load user on mount
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -24,7 +24,7 @@ export default function App() {
     }
     getUser()
 
-    // Listen for auth changes
+    // Listen for login/logout
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user || null)
     })
@@ -36,26 +36,22 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-black to-gray-800">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-brand-green/30 border-t-brand-green rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-300">Loading...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center text-white">
+        Loading...
       </div>
     )
   }
 
-  // If logged in, show dashboard
+  // If logged in → show dashboards
   if (user) {
-    const role = user.user_metadata?.role || "member" // Default to member
-    if (role === "member") {
-      return <MemberDashboard />
-    } else if (role === "admin") {
+    const role = user.user_metadata?.role || "member"
+    if (role === "admin") {
       return <AdminDashboard />
     }
+    return <MemberDashboard />
   }
 
-  // Show authentication screens
+  // Not logged in → show auth pages
   switch (currentAuthPage) {
     case "signup":
       return <SignupPage onSwitchToLogin={() => setCurrentAuthPage("login")} />
@@ -64,12 +60,10 @@ export default function App() {
     case "login":
     default:
       return (
-        <div className="relative">
-          <LoginPage
-            onSwitchToSignup={() => setCurrentAuthPage("signup")}
-            onSwitchToAdminLogin={() => setCurrentAuthPage("admin-login")}
-          />
-        </div>
+        <LoginPage
+          onSwitchToSignup={() => setCurrentAuthPage("signup")}
+          onSwitchToAdminLogin={() => setCurrentAuthPage("admin-login")}
+        />
       )
   }
 }
