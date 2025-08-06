@@ -1,17 +1,15 @@
 "use client"
 
-import type React from "react"
 import { useState } from "react"
 import { Eye, EyeOff, Mail, Lock, User, ArrowRight, ArrowLeft } from "lucide-react"
 import Image from "next/image"
-import { useAuth } from "@/contexts/auth-context"
+import { supabase } from "@/lib/supabaseClient"
 
 interface SignupPageProps {
   onSwitchToLogin: () => void
 }
 
 export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
-  const { signup } = useAuth()
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -41,42 +39,43 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
       return
     }
 
-    try {
-      const success = await signup(formData.name, formData.email, formData.password)
-      if (!success) {
-        setError("Email already exists")
+    // Supabase signup
+    const { error } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.password,
+      options: {
+        data: {
+          full_name: formData.name,
+          role: "member", // default role
+        }
       }
-    } catch (err) {
-      setError("Signup failed. Please try again.")
-    } finally {
-      setIsLoading(false)
+    })
+
+    if (error) {
+      setError(error.message)
     }
+
+    setIsLoading(false)
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }))
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
     if (error) setError("")
   }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-gray-900 via-black to-gray-800 relative overflow-hidden">
-      {/* Background gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-brand-green/10 via-transparent to-brand-orange/10 pointer-events-none" />
 
       {/* Logo */}
       <div className="mb-8 animate-fade-in">
-        <div className="relative">
-          <Image
-            src="/prototype-logo.png"
-            alt="Prototype Training Systems"
-            width={80}
-            height={80}
-            className="rounded-full glow-green"
-          />
-        </div>
+        <Image
+          src="/prototype-logo.png"
+          alt="Prototype Training Systems"
+          width={80}
+          height={80}
+          className="rounded-full glow-green"
+        />
       </div>
 
       {/* Signup Form */}
@@ -85,7 +84,7 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
           <div className="flex items-center space-x-4 mb-6">
             <button
               onClick={onSwitchToLogin}
-              className="p-2 text-gray-400 hover:text-white rounded-xl hover:bg-white/10 transition-all duration-300"
+              className="p-2 text-gray-400 hover:text-white rounded-xl hover:bg-white/10 transition-all"
             >
               <ArrowLeft size={20} />
             </button>
@@ -98,9 +97,7 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Name Field */}
             <div className="space-y-2">
-              <label htmlFor="name" className="text-sm font-medium text-gray-300">
-                Full Name
-              </label>
+              <label htmlFor="name" className="text-sm font-medium text-gray-300">Full Name</label>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                 <input
@@ -109,7 +106,7 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-green/50 focus:border-brand-green/50 transition-all duration-300"
+                  className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white"
                   placeholder="Enter your full name"
                   required
                 />
@@ -118,9 +115,7 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
 
             {/* Email Field */}
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium text-gray-300">
-                Email
-              </label>
+              <label htmlFor="email" className="text-sm font-medium text-gray-300">Email</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                 <input
@@ -129,7 +124,7 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-green/50 focus:border-brand-green/50 transition-all duration-300"
+                  className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white"
                   placeholder="Enter your email"
                   required
                 />
@@ -138,9 +133,7 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
 
             {/* Password Field */}
             <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-gray-300">
-                Password
-              </label>
+              <label htmlFor="password" className="text-sm font-medium text-gray-300">Password</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                 <input
@@ -149,14 +142,14 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  className="w-full pl-12 pr-12 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-green/50 focus:border-brand-green/50 transition-all duration-300"
+                  className="w-full pl-12 pr-12 py-4 bg-white/5 border border-white/10 rounded-2xl text-white"
                   placeholder="Create a password"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400"
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
@@ -165,9 +158,7 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
 
             {/* Confirm Password Field */}
             <div className="space-y-2">
-              <label htmlFor="confirmPassword" className="text-sm font-medium text-gray-300">
-                Confirm Password
-              </label>
+              <label htmlFor="confirmPassword" className="text-sm font-medium text-gray-300">Confirm Password</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                 <input
@@ -176,14 +167,14 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
-                  className="w-full pl-12 pr-12 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-green/50 focus:border-brand-green/50 transition-all duration-300"
+                  className="w-full pl-12 pr-12 py-4 bg-white/5 border border-white/10 rounded-2xl text-white"
                   placeholder="Confirm your password"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400"
                 >
                   {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
@@ -192,7 +183,7 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
 
             {/* Error Message */}
             {error && (
-              <div className="bg-red-500/20 border border-red-500/30 rounded-2xl p-4 text-red-400 text-sm animate-shake">
+              <div className="bg-red-500/20 border border-red-500/30 rounded-2xl p-4 text-red-400 text-sm">
                 {error}
               </div>
             )}
@@ -201,7 +192,7 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gradient-to-r from-brand-green to-brand-orange text-white py-4 rounded-2xl font-semibold hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 glow-green flex items-center justify-center space-x-2"
+              className="w-full bg-gradient-to-r from-brand-green to-brand-orange text-white py-4 rounded-2xl font-semibold hover:scale-105 transition-all disabled:opacity-50 flex items-center justify-center space-x-2"
             >
               {isLoading ? (
                 <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -220,7 +211,7 @@ export default function SignupPage({ onSwitchToLogin }: SignupPageProps) {
               Already have an account?{" "}
               <button
                 onClick={onSwitchToLogin}
-                className="text-brand-green hover:text-brand-orange transition-colors font-medium"
+                className="text-brand-green hover:text-brand-orange font-medium"
               >
                 Sign in here
               </button>
