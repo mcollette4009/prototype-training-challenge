@@ -15,7 +15,10 @@ export default function MemberDashboard() {
   useEffect(() => {
     async function loadUserAndCheck() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        setLoading(false)
+        return
+      }
       setUser(user)
 
       const { data: participants } = await supabase
@@ -34,6 +37,7 @@ export default function MemberDashboard() {
     loadUserAndCheck()
   }, [])
 
+  // Handle joining the challenge
   async function joinChallenge() {
     if (!user) return
     const { error } = await supabase.from("challenge_participants").insert([
@@ -46,6 +50,7 @@ export default function MemberDashboard() {
     }
   }
 
+  // Handle logging a daily "hard thing"
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setStatus("")
@@ -57,7 +62,6 @@ export default function MemberDashboard() {
       return
     }
 
-    // Insert into logs table
     const { error } = await supabase.from("logs").insert([
       {
         user_id: user.id,
@@ -119,6 +123,4 @@ export default function MemberDashboard() {
       )}
     </div>
   )
-}
-
 }
