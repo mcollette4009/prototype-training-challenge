@@ -4,7 +4,7 @@ import type React from "react"
 import { useState } from "react"
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Shield } from "lucide-react"
 import Image from "next/image"
-import { useAuth } from "@/contexts/auth-context"
+import { supabase } from "@/lib/supabaseClient"
 
 interface LoginPageProps {
   onSwitchToSignup: () => void
@@ -12,7 +12,6 @@ interface LoginPageProps {
 }
 
 export default function LoginPage({ onSwitchToSignup, onSwitchToAdminLogin }: LoginPageProps) {
-  const { login } = useAuth()
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -26,16 +25,16 @@ export default function LoginPage({ onSwitchToSignup, onSwitchToAdminLogin }: Lo
     setIsLoading(true)
     setError("")
 
-    try {
-      const success = await login(formData.email, formData.password)
-      if (!success) {
-        setError("Invalid email or password")
-      }
-    } catch (err) {
-      setError("Login failed. Please try again.")
-    } finally {
-      setIsLoading(false)
+    const { error } = await supabase.auth.signInWithPassword({
+      email: formData.email,
+      password: formData.password,
+    })
+
+    if (error) {
+      setError(error.message)
     }
+
+    setIsLoading(false)
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,7 +47,6 @@ export default function LoginPage({ onSwitchToSignup, onSwitchToAdminLogin }: Lo
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-gray-900 via-black to-gray-800 relative overflow-hidden">
-      {/* Background gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-brand-green/10 via-transparent to-brand-orange/10 pointer-events-none" />
 
       {/* Logo */}
@@ -73,15 +71,6 @@ export default function LoginPage({ onSwitchToSignup, onSwitchToAdminLogin }: Lo
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Demo Credentials */}
-            <div className="p-4 bg-blue-500/20 border border-blue-500/30 rounded-2xl">
-              <p className="text-blue-400 text-sm font-medium mb-2">Demo Credentials:</p>
-              <div className="text-xs text-blue-300 space-y-1">
-                <p>Member: member@prototype.com / password123</p>
-                <p>Admin: admin@prototype.com / admin123</p>
-              </div>
-            </div>
-
             {/* Email Field */}
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium text-gray-300">
