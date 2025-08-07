@@ -2,9 +2,11 @@
 
 import { useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 
-export default function MemberDashboard({ onBack }: { onBack: () => void }) {
-  const [challenge, setChallenge] = useState("")
+export default function MemberDashboard() {
+  const [log, setLog] = useState("")
   const [status, setStatus] = useState("")
   const [loading, setLoading] = useState(false)
 
@@ -15,58 +17,56 @@ export default function MemberDashboard({ onBack }: { onBack: () => void }) {
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      setStatus("You must be logged in")
+      setStatus("❌ You must be logged in.")
       setLoading(false)
       return
     }
 
     const { error } = await supabase.from("challenge_logs").insert({
       user_id: user.id,
-      description: challenge,
-      date: new Date().toISOString().split("T")[0]
+      description: log,
+      date: new Date().toISOString().split("T")[0],
     })
 
     if (error) {
       setStatus("❌ Failed to log challenge: " + error.message)
     } else {
       setStatus("✅ Challenge logged successfully!")
-      setChallenge("")
+      setLog("")
     }
 
     setLoading(false)
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      <div className="mb-6">
-        <button
-          onClick={onBack}
-          className="text-sm underline text-gray-400 hover:text-white"
-        >
-          ← Back
-        </button>
+    <div className="min-h-screen bg-gray-950 text-white px-4 py-8">
+      <div className="max-w-xl mx-auto">
+        <h1 className="text-3xl font-bold mb-6 text-center">Member Dashboard</h1>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Textarea
+            value={log}
+            onChange={(e) => setLog(e.target.value)}
+            placeholder="What was your hard thing today?"
+            className="bg-gray-800 text-white min-h-[140px]"
+            required
+          />
+
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-brand-green hover:bg-brand-orange transition-colors"
+          >
+            {loading ? "Saving..." : "Save Log"}
+          </Button>
+        </form>
+
+        {status && (
+          <p className="mt-4 text-center text-sm text-white bg-white/10 border border-white/20 rounded p-3">
+            {status}
+          </p>
+        )}
       </div>
-
-      <h1 className="text-2xl font-bold mb-4">Member Dashboard</h1>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <textarea
-          value={challenge}
-          onChange={(e) => setChallenge(e.target.value)}
-          placeholder="What was your hard thing today?"
-          className="w-full p-3 text-black rounded"
-          required
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-green-500 px-4 py-2 rounded disabled:opacity-50"
-        >
-          {loading ? "Saving..." : "Save Challenge"}
-        </button>
-      </form>
-
-      {status && <p className="mt-4">{status}</p>}
     </div>
   )
 }
