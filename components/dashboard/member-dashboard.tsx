@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { supabase } from "@/lib/supabaseClient"
 import { Home, Calendar, Trophy, User } from "lucide-react"
-import { useAuth } from "@/contexts/auth-context"
 import HomePage from "@/components/pages/home-page"
 import CalendarPage from "@/components/pages/calendar-page"
 import LeaderboardPage from "@/components/pages/leaderboard-page"
@@ -11,10 +11,23 @@ import ProfilePage from "@/components/pages/profile-page"
 type TabType = "home" | "calendar" | "leaderboard" | "profile"
 
 export default function MemberDashboard() {
-  const { user } = useAuth()
+  const [user, setUser] = useState<any>(null)
   const [activeTab, setActiveTab] = useState<TabType>("home")
 
-  if (!user || user.role !== "member") return null
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data, error } = await supabase.auth.getUser()
+      if (error || !data?.user) {
+        console.error("Error loading user", error)
+        return
+      }
+      setUser(data.user)
+    }
+
+    fetchUser()
+  }, [])
+
+  if (!user) return null
 
   const renderContent = () => {
     switch (activeTab) {
@@ -47,10 +60,10 @@ export default function MemberDashboard() {
       <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-mobile z-50">
         <div className="glass-nav border-t border-white/10 px-4 py-2">
           <div className="flex items-center justify-around">
-            <TabButton icon={<Home size={20} />} label="Home" tab="home" activeTab={activeTab} setActiveTab={setActiveTab} />
-            <TabButton icon={<Calendar size={20} />} label="Calendar" tab="calendar" activeTab={activeTab} setActiveTab={setActiveTab} />
-            <TabButton icon={<Trophy size={20} />} label="Leaderboard" tab="leaderboard" activeTab={activeTab} setActiveTab={setActiveTab} />
-            <TabButton icon={<User size={20} />} label="Profile" tab="profile" activeTab={activeTab} setActiveTab={setActiveTab} />
+            <Tab icon={<Home size={20} />} label="Home" tab="home" activeTab={activeTab} setActiveTab={setActiveTab} />
+            <Tab icon={<Calendar size={20} />} label="Calendar" tab="calendar" activeTab={activeTab} setActiveTab={setActiveTab} />
+            <Tab icon={<Trophy size={20} />} label="Leaderboard" tab="leaderboard" activeTab={activeTab} setActiveTab={setActiveTab} />
+            <Tab icon={<User size={20} />} label="Profile" tab="profile" activeTab={activeTab} setActiveTab={setActiveTab} />
           </div>
         </div>
       </div>
@@ -58,7 +71,7 @@ export default function MemberDashboard() {
   )
 }
 
-function TabButton({ icon, label, tab, activeTab, setActiveTab }: any) {
+function Tab({ icon, label, tab, activeTab, setActiveTab }: any) {
   const isActive = tab === activeTab
   return (
     <button
