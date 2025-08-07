@@ -1,72 +1,76 @@
 "use client"
 
 import { useState } from "react"
-import { supabase } from "@/lib/supabaseClient"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
+import { Home, Calendar, Trophy, User } from "lucide-react"
+import { useAuth } from "@/contexts/auth-context"
+import HomePage from "@/components/pages/home-page"
+import CalendarPage from "@/components/pages/calendar-page"
+import LeaderboardPage from "@/components/pages/leaderboard-page"
+import ProfilePage from "@/components/pages/profile-page"
+
+type TabType = "home" | "calendar" | "leaderboard" | "profile"
 
 export default function MemberDashboard() {
-  const [log, setLog] = useState("")
-  const [status, setStatus] = useState("")
-  const [loading, setLoading] = useState(false)
+  const { user } = useAuth()
+  const [activeTab, setActiveTab] = useState<TabType>("home")
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setStatus("")
+  if (!user || user.role !== "member") return null
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setStatus("❌ You must be logged in.")
-      setLoading(false)
-      return
+  const renderContent = () => {
+    switch (activeTab) {
+      case "home":
+        return <HomePage />
+      case "calendar":
+        return <CalendarPage />
+      case "leaderboard":
+        return <LeaderboardPage />
+      case "profile":
+        return <ProfilePage />
+      default:
+        return <HomePage />
     }
-
-    const { error } = await supabase.from("challenge_logs").insert({
-      user_id: user.id,
-      description: log,
-      date: new Date().toISOString().split("T")[0],
-    })
-
-    if (error) {
-      setStatus("❌ Failed to log challenge: " + error.message)
-    } else {
-      setStatus("✅ Challenge logged successfully!")
-      setLog("")
-    }
-
-    setLoading(false)
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white px-4 py-8">
-      <div className="max-w-xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6 text-center">Member Dashboard</h1>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 max-w-mobile mx-auto relative">
+      {/* Header */}
+      <div className="sticky top-0 z-50 glass-header border-b border-white/10">
+        <div className="flex items-center justify-center p-4">
+          <img src="/prototype-logo.png" alt="Prototype Training Systems" className="h-8 w-auto" />
+        </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Textarea
-            value={log}
-            onChange={(e) => setLog(e.target.value)}
-            placeholder="What was your hard thing today?"
-            className="bg-gray-800 text-white min-h-[140px]"
-            required
-          />
+      {/* Content */}
+      <div className="pb-20">{renderContent()}</div>
 
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-brand-green hover:bg-brand-orange transition-colors"
-          >
-            {loading ? "Saving..." : "Save Log"}
-          </Button>
-        </form>
-
-        {status && (
-          <p className="mt-4 text-center text-sm text-white bg-white/10 border border-white/20 rounded p-3">
-            {status}
-          </p>
-        )}
+      {/* Bottom Navigation */}
+      <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-mobile z-50">
+        <div className="glass-nav border-t border-white/10 px-4 py-2">
+          <div className="flex items-center justify-around">
+            <TabButton icon={<Home size={20} />} label="Home" tab="home" activeTab={activeTab} setActiveTab={setActiveTab} />
+            <TabButton icon={<Calendar size={20} />} label="Calendar" tab="calendar" activeTab={activeTab} setActiveTab={setActiveTab} />
+            <TabButton icon={<Trophy size={20} />} label="Leaderboard" tab="leaderboard" activeTab={activeTab} setActiveTab={setActiveTab} />
+            <TabButton icon={<User size={20} />} label="Profile" tab="profile" activeTab={activeTab} setActiveTab={setActiveTab} />
+          </div>
+        </div>
       </div>
     </div>
+  )
+}
+
+function TabButton({ icon, label, tab, activeTab, setActiveTab }: any) {
+  const isActive = tab === activeTab
+  return (
+    <button
+      onClick={() => setActiveTab(tab)}
+      className={`flex flex-col items-center space-y-1 p-3 rounded-2xl transition-all duration-300 ${
+        isActive
+          ? "bg-brand-orange/20 text-brand-orange"
+          : "text-gray-400 hover:text-white hover:bg-white/10"
+      }`}
+    >
+      {icon}
+      <span className="text-xs font-medium">{label}</span>
+    </button>
   )
 }
