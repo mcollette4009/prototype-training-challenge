@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabaseClient"
 import LoginPage from "@/components/auth/login-page"
 import SignupPage from "@/components/auth/signup-page"
 import AdminLoginPage from "@/components/auth/admin-login-page"
-import MemberDashboard from "@/components/dashboard/member-dashboard" // ✅ import
+import MemberDashboard from "@/components/dashboard/member-dashboard"
 
 type AuthPage = "login" | "signup" | "admin-login"
 
@@ -39,12 +39,12 @@ export default function App() {
     )
   }
 
-  // ✅ If logged in → go to dashboard
+  // ✅ Logged in → Show dashboard with back button
   if (user) {
-    return <MemberDashboard />
+    return <MemberDashboard onBack={() => setUser(null)} />
   }
 
-  // Not logged in → show auth pages
+  // Not logged in → Show login/signup/admin auth pages
   switch (currentAuthPage) {
     case "signup":
       return <SignupPage onSwitchToLogin={() => setCurrentAuthPage("login")} />
