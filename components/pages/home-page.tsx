@@ -1,95 +1,61 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabaseClient"
-import { Plus, Target, CheckCircle, Clock, Share2, Heart, MessageCircle } from "lucide-react"
+import { Plus, Target, Heart, MessageCircle, Share2, Clock, CheckCircle, ArrowLeft } from "lucide-react"
 import DailyLogModal from "@/components/challenge/daily-log-modal"
-import { useAuth } from "@/contexts/auth-context"
-
-interface Profile {
-  id: string
-  name: string
-  avatar?: string
-}
-
-interface Challenge {
-  id: string
-  title: string
-  description: string
-  difficulty: string
-  duration: number
-  cover_image?: string
-  daily_prompts: string[]
-  participants: number
-}
-
-interface ChallengeLog {
-  id: string
-  user_id: string
-  challenge_id: string
-  date: string
-  text: string
-  completed: boolean
-  timestamp: string
-  photo_url?: string
-}
+import BackButton from "@/components/ui/back-button"
 
 export default function HomePage() {
-  const { user } = useAuth()
-  const [profiles, setProfiles] = useState<Profile[]>([])
-  const [challenges, setChallenges] = useState<Challenge[]>([])
-  const [logs, setLogs] = useState<ChallengeLog[]>([])
-  const [joinedIds, setJoinedIds] = useState<string[]>([])
-  const [selectedChallengeId, setSelectedChallengeId] = useState<string | null>(null)
+  const [user, setUser] = useState<any>(null)
+  const [challenges, setChallenges] = useState<any[]>([])
+  const [dailyLogs, setDailyLogs] = useState<any[]>([])
   const [showDailyLogModal, setShowDailyLogModal] = useState(false)
+  const [selectedChallengeId, setSelectedChallengeId] = useState<string | null>(null)
+  const [likedLogs, setLikedLogs] = useState<Set<string>>(new Set())
 
   const today = new Date().toISOString().split("T")[0]
 
   useEffect(() => {
-    if (!user) return
-
     const fetchData = async () => {
-      const [{ data: profilesData }, { data: challengesData }, { data: logsData }, { data: joinData }] =
-        await Promise.all([
-          supabase.from("profiles").select("id, name, avatar"),
-          supabase.from("challenges").select("*"),
-          supabase.from("challenge_logs").select("*"),
-          supabase.from("challenge_participants").select("*"),
-        ])
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      setUser(user)
 
-      setProfiles(profilesData || [])
-      setChallenges(challengesData || [])
-      setLogs(logsData || [])
-      setJoinedIds(joinData?.filter((j) => j.user_id === user.id).map((j) => j.challenge_id) || [])
+      const { data: challenges } = await supabase.from("challenges").select("*")
+      setChallenges(challenges || [])
+
+      const { data: logs } = await supabase.from("challenge_logs").select("*")
+      setDailyLogs(logs || [])
     }
 
     fetchData()
-  }, [user])
+  }, [])
 
-  const joinedChallenges = challenges.filter((c) => joinedIds.includes(c.id))
-  const availableChallenges = challenges.filter((c) => !joinedIds.includes(c.id))
+  const getTodayLog = (challengeId: string) => {
+    return dailyLogs.find(
+      (log) => log.user_id === user?.id && log.challenge_id === challengeId && log.date === today
+    )
+  }
 
-  const handleJoin = async (challengeId: string) => {
-    await supabase.from("challenge_participants").insert({
-      user_id: user.id,
-      challenge_id: challengeId,
-    })
-    setJoinedIds((prev) => [...prev, challengeId])
+  const handleOpenDailyLog = (challengeId: string) => {
+    setSelectedChallengeId(challengeId)
+    setShowDailyLogModal(true)
   }
 
   const handleSaveDailyLog = async (text: string, completed: boolean, photoUrl?: string) => {
-    if (!selectedChallengeId) return
+    if (!selectedChallengeId || !user) return
 
-    const existingLog = logs.find(
+    const existingLog = dailyLogs.find(
       (l) => l.user_id === user.id && l.challenge_id === selectedChallengeId && l.date === today
     )
 
     if (existingLog) {
-      await supabase.from("challenge_logs").update({
-        text,
-        completed,
-        photo_url: photoUrl,
-      }).eq("id", existingLog.id)
+      await supabase
+        .from("challenge_logs")
+        .update({ text, completed, photo_url: photoUrl })
+        .eq("id", existingLog.id)
     } else {
       await supabase.from("challenge_logs").insert({
         user_id: user.id,
@@ -102,121 +68,126 @@ export default function HomePage() {
       })
     }
 
-    setShowDailyLogModal(false)
-    setSelectedChallengeId(null)
+    alert("✅ Log saved!")
 
     // Refresh logs
     const { data: updatedLogs } = await supabase.from("challenge_logs").select("*")
-    setLogs(updatedLogs || [])
+    setDailyLogs(updatedLogs || [])
+
+    setShowDailyLogModal(false)
+    setSelectedChallengeId(null)
+  }
+
+  const handleLike = (logId: string) => {
+    const newLikedLogs = new Set(likedLogs)
+    if (likedLogs.has(logId)) {
+      newLikedLogs.delete(logId)
+    } else {
+      newLikedLogs.add(logId)
+    }
+    setLikedLogs(newLikedLogs)
   }
 
   const formatTimeAgo = (timestamp: string) => {
     const date = new Date(timestamp)
     const now = new Date()
-    const diffHours = Math.floor((now.getTime() - date.getTime()) / 1000 / 60 / 60)
-    if (diffHours < 1) return "Just now"
-    if (diffHours < 24) return `${diffHours}h ago`
-    const diffDays = Math.floor(diffHours / 24)
-    if (diffDays === 1) return "Yesterday"
-    return `${diffDays}d ago`
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
+    if (diffInHours < 1) return "Just now"
+    if (diffInHours < 24) return `${diffInHours}h ago`
+    const diffInDays = Math.floor(diffInHours / 24)
+    if (diffInDays === 1) return "Yesterday"
+    if (diffInDays < 7) return `${diffInDays}d ago`
+    return date.toLocaleDateString()
   }
 
   return (
-    <div className="p-4 space-y-8">
-      <h1 className="text-2xl font-bold text-white">Welcome, {user?.user_metadata?.name?.split(" ")[0] || "Warrior"}</h1>
+    <div className="p-4 space-y-6 text-white">
+      {/* ✅ Back Button */}
+      <BackButton label="Back to Dashboard" />
 
-      {/* Joined Challenges */}
-      {joinedChallenges.length > 0 && (
+      {/* ✅ Welcome */}
+      <div className="glass-card rounded-3xl p-6">
+        <h1 className="text-2xl font-bold">Welcome back!</h1>
+        <p className="text-sm text-gray-300">Here’s your progress for today.</p>
+      </div>
+
+      {/* ✅ Challenges */}
+      {challenges.map((challenge) => {
+        const userLogs = dailyLogs.filter(
+          (log) => log.user_id === user?.id && log.challenge_id === challenge.id
+        )
+        const todayLog = getTodayLog(challenge.id)
+        const completedDays = userLogs.filter((log) => log.completed).length
+        const progressPercentage = Math.round((completedDays / challenge.duration) * 100)
+
+        return (
+          <div key={challenge.id} className="glass-card rounded-3xl p-6">
+            <div className="flex justify-between items-center mb-3">
+              <div>
+                <h2 className="text-lg font-bold">{challenge.title}</h2>
+                <p className="text-sm text-gray-400">
+                  {completedDays} / {challenge.duration} days complete
+                </p>
+              </div>
+              {todayLog?.completed && (
+                <div className="flex items-center space-x-2 bg-green-500/10 text-green-500 px-3 py-1 rounded-full">
+                  <CheckCircle size={16} />
+                  <span className="text-xs font-medium">Completed</span>
+                </div>
+              )}
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full bg-white/10 rounded-full h-2 mb-4">
+              <div
+                className="bg-green-500 h-2 rounded-full"
+                style={{ width: `${progressPercentage}%` }}
+              ></div>
+            </div>
+
+            <button
+              onClick={() => handleOpenDailyLog(challenge.id)}
+              className="w-full bg-gradient-to-r from-brand-green to-brand-orange text-white font-semibold py-3 px-6 rounded-xl hover:scale-105 transition-all"
+            >
+              {todayLog ? "Update Log" : "Log Today's Challenge"}
+            </button>
+          </div>
+        )
+      })}
+
+      {/* ✅ Social Feed */}
+      {dailyLogs.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-white">Your Active Challenges</h2>
-          {joinedChallenges.map((challenge) => {
-            const todayLog = logs.find(
-              (l) => l.user_id === user.id && l.challenge_id === challenge.id && l.date === today
-            )
-            const completedDays = logs.filter((l) => l.user_id === user.id && l.challenge_id === challenge.id && l.completed).length
-            const progress = Math.round((completedDays / challenge.duration) * 100)
-
-            return (
-              <div key={challenge.id} className="glass-card p-4 rounded-xl space-y-2">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-bold text-white">{challenge.title}</h3>
-                  {todayLog?.completed && (
-                    <span className="text-sm text-brand-green flex items-center space-x-1">
-                      <CheckCircle size={16} /> <span>Completed</span>
-                    </span>
-                  )}
+          <h2 className="text-lg font-bold text-white">Community Feed</h2>
+          {dailyLogs.map((item, i) => (
+            <div
+              key={item.id}
+              className="glass-card rounded-3xl p-4 text-white border border-white/10"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="font-bold">User: {item.user_id.slice(0, 6)}</p>
+                  <p className="text-sm text-gray-400">{formatTimeAgo(item.timestamp)}</p>
                 </div>
-                <div className="bg-white/10 h-2 rounded-full overflow-hidden">
-                  <div className="bg-brand-green h-2 rounded-full" style={{ width: `${progress}%` }} />
-                </div>
-                <p className="text-sm text-white">{challenge.daily_prompts?.[0] || "What did you do today?"}</p>
                 <button
-                  onClick={() => {
-                    setSelectedChallengeId(challenge.id)
-                    setShowDailyLogModal(true)
-                  }}
-                  className="bg-gradient-to-r from-brand-green to-brand-orange text-white px-4 py-2 rounded-xl text-sm font-medium"
+                  onClick={() => handleLike(item.id)}
+                  className={`flex items-center space-x-1 px-3 py-1 rounded-xl ${
+                    likedLogs.has(item.id)
+                      ? "bg-red-500/20 text-red-400"
+                      : "text-gray-400 hover:bg-white/10"
+                  }`}
                 >
-                  {todayLog ? "Update Log" : "Log Today's Challenge"}
+                  <Heart size={16} className={likedLogs.has(item.id) ? "fill-current" : ""} />
+                  <span className="text-sm">{likedLogs.has(item.id) ? "1" : "0"}</span>
                 </button>
               </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Available Challenges */}
-      {availableChallenges.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-white">Available Challenges</h2>
-          {availableChallenges.map((challenge) => (
-            <div key={challenge.id} className="glass-card p-4 rounded-xl space-y-2">
-              <h3 className="font-bold text-white">{challenge.title}</h3>
-              <p className="text-sm text-gray-300">{challenge.description}</p>
-              <button
-                onClick={() => handleJoin(challenge.id)}
-                className="bg-gradient-to-r from-brand-green to-brand-orange text-white px-4 py-2 rounded-xl text-sm font-medium"
-              >
-                Join Challenge
-              </button>
+              <p className="text-sm text-gray-200">{item.text}</p>
             </div>
           ))}
         </div>
       )}
 
-      {/* Social Feed */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-          <Clock size={16} /> Community Feed
-        </h2>
-        {logs
-          .filter((l) => l.text)
-          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-          .slice(0, 10)
-          .map((log) => {
-            const profile = profiles.find((p) => p.id === log.user_id)
-            const challenge = challenges.find((c) => c.id === log.challenge_id)
-            return (
-              <div key={log.id} className="glass-card p-4 rounded-xl space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <img src={profile?.avatar || "/placeholder.svg"} className="w-8 h-8 rounded-full" />
-                    <div>
-                      <p className="text-white text-sm font-semibold">{profile?.name || "Anonymous"}</p>
-                      <p className="text-xs text-gray-400">
-                        {challenge?.title || "Challenge"} • {formatTimeAgo(log.timestamp)}
-                      </p>
-                    </div>
-                  </div>
-                  <Share2 size={16} className="text-gray-400" />
-                </div>
-                <p className="text-sm text-white">{log.text}</p>
-              </div>
-            )
-          })}
-      </div>
-
-      {/* Modal */}
+      {/* ✅ Log Modal */}
       {showDailyLogModal && selectedChallengeId && (
         <DailyLogModal
           isOpen={showDailyLogModal}
@@ -226,8 +197,10 @@ export default function HomePage() {
           }}
           onSave={handleSaveDailyLog}
           selectedDate={today}
-          challengeTitle={challenges.find((c) => c.id === selectedChallengeId)?.title || "Challenge"}
-          existingLog={logs.find((l) => l.user_id === user.id && l.challenge_id === selectedChallengeId && l.date === today)}
+          challengeTitle={
+            challenges.find((c) => c.id === selectedChallengeId)?.title || "Challenge"
+          }
+          existingLog={getTodayLog(selectedChallengeId)}
         />
       )}
     </div>
